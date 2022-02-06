@@ -12,6 +12,8 @@ import android.renderscript.ScriptIntrinsicBlur;
 import android.util.AttributeSet;
 import android.widget.ImageView;
 
+import androidx.annotation.FloatRange;
+
 
 /**
  * @author ldh
@@ -89,7 +91,7 @@ public class BlurImageView extends ImageView {
     /**
      * 为了提高模糊化的性能，在进行模糊时要先对图片进行压缩，再显示出来，这就是压缩的倍率
      */
-    public void setCompressScale(float compressScale) {
+    public void setCompressScale(@FloatRange(from = 0f, to = 1f) float compressScale) {
         this.mCompressScale = compressScale;
         updateBlur();
     }
@@ -105,7 +107,7 @@ public class BlurImageView extends ImageView {
     /**
      * 模糊半径，取值 [0, 25]， 模糊半径越大，模糊程度越高
      */
-    public void setBlurRadius(float blurRadius) {
+    public void setBlurRadius(@FloatRange(from = 0f, to = 25f) float blurRadius) {
         this.mBlurRadius = blurRadius;
         updateBlur();
     }
@@ -120,7 +122,6 @@ public class BlurImageView extends ImageView {
      * 更新一次，显示当前画面的模糊画面
      */
     public void updateBlur() {
-//        mSrcDrawable = getDrawable();
         doBlur(mSrcDrawable, mBlurRadius, mCompressScale);
     }
 
@@ -137,8 +138,10 @@ public class BlurImageView extends ImageView {
             //直接显示，不进行模糊
             super.setImageDrawable(srcDrawable);
         } else {
-            Bitmap blurred = blurRenderScript(((BitmapDrawable) srcDrawable).getBitmap(), radius, compressScale);
-            setImageBitmap(blurred);
+            if (srcDrawable instanceof  BitmapDrawable) {
+                Bitmap blurred = blurRenderScript(((BitmapDrawable) srcDrawable).getBitmap(), radius, compressScale);
+                setImageBitmap(blurred);
+            } else setImageDrawable(srcDrawable);
         }
         invalidate();
     }
