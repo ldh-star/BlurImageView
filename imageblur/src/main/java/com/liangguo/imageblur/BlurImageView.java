@@ -148,7 +148,6 @@ public class BlurImageView extends AppCompatImageView {
     }
 
     private Bitmap blurRenderScript(Bitmap smallBitmap, float radius, float compressScale) {
-
         int width = Math.round(smallBitmap.getWidth() * compressScale);
         int height = Math.round(smallBitmap.getHeight() * compressScale);
 
