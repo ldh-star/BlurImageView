@@ -13,6 +13,7 @@ import android.util.AttributeSet;
 import android.widget.ImageView;
 
 import androidx.annotation.FloatRange;
+import androidx.appcompat.widget.AppCompatImageView;
 
 
 /**
@@ -20,7 +21,7 @@ import androidx.annotation.FloatRange;
  * 时间: 2022/2/2 9:03
  * 邮箱: 2637614077@qq.com
  */
-public class BlurImageView extends ImageView {
+public class BlurImageView extends AppCompatImageView {
 
 
     /**
@@ -82,7 +83,7 @@ public class BlurImageView extends ImageView {
     }
 
     /**
-     * 为该View设置drawable，然后该View会将这个Drawable模糊后显示出来
+     * 获取SrcDrawable
      */
     public Drawable getSrcDrawable() {
         return mSrcDrawable;
