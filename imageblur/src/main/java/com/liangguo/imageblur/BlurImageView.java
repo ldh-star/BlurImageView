@@ -100,7 +100,7 @@ public class BlurImageView extends AppCompatImageView {
      * 为了提高模糊化的性能，在进行模糊时要先对图片进行压缩，再显示出来，这就是压缩的倍率
      */
     public void setCompressScale(@FloatRange(from = 0f, to = 1f) float compressScale) {
-        setBlurAndCompress(mBlurRadius, mCompressScale);
+        setBlurAndCompress(mBlurRadius, compressScale);
     }
 
     /**
@@ -123,7 +123,7 @@ public class BlurImageView extends AppCompatImageView {
      * 模糊半径，取值 [0, 25]， 模糊半径越大，模糊程度越高
      */
     public void setBlurRadius(@FloatRange(from = MIN_BLUR_RADIUS, to = MAX_BLUR_RADIUS) float blurRadius) {
-        setBlurAndCompress(mBlurRadius, mCompressScale);
+        setBlurAndCompress(blurRadius, mCompressScale);
     }
 
     /**
