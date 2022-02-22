@@ -45,6 +45,8 @@ public class BlurImageView extends AppCompatImageView {
 
     private boolean mEnableBlurInMainThread = false;
 
+    private boolean enableSmartUpdate = true;
+
     private final RealtimeExecutor mExecutor = new RealtimeExecutor();
 
     public BlurImageView(Context context) {
@@ -90,6 +92,28 @@ public class BlurImageView extends AppCompatImageView {
     }
 
     /**
+     * 智能更新：当设置进来的值与之前没有发生改变时，将不会进行模糊更新处理以节约性能。
+     * true：每次设置blurRadius或compressScale之后，若值和之前比发生了改变，则会进行模糊处理并更新View，否则不会。
+     * false：设置blurRadius或compressScale之后，不会进行任何判断，一律进行模糊处理并更新View。
+     *
+     * @return 是否允许智能更新
+     */
+    public boolean isEnableSmartUpdate() {
+        return enableSmartUpdate;
+    }
+
+    /**
+     * 智能更新：当设置进来的值与之前没有发生改变时，将不会进行模糊更新处理以节约性能。
+     * true：每次设置blurRadius或compressScale之后，若值和之前比发生了改变，则会进行模糊处理并更新View，否则不会。
+     * false：设置blurRadius或compressScale之后，不会进行任何判断，一律进行模糊处理并更新View。
+     *
+     * @param enableSmartUpdate 是否允许智能更新
+     */
+    public void setEnableSmartUpdate(boolean enableSmartUpdate) {
+        this.enableSmartUpdate = enableSmartUpdate;
+    }
+
+    /**
      * 获取SrcDrawable
      */
     public Drawable getSrcDrawable() {
@@ -114,9 +138,13 @@ public class BlurImageView extends AppCompatImageView {
      * 同时设值模糊半径和压缩比例两个参数，尽可能减少更新次数，节约性能。
      */
     public void setBlurAndCompress(@FloatRange(from = MIN_BLUR_RADIUS, to = MAX_BLUR_RADIUS) float blurRadius, @FloatRange(from = 0f, to = 1f) float compressScale) {
+        float preBlurRadius = mBlurRadius;
+        float preCompressScale = mCompressScale;
         this.mBlurRadius = checkBlurRadius(blurRadius);
         this.mCompressScale = checkCompressScale(compressScale);
-        updateBlur();
+        if (!enableSmartUpdate || (preBlurRadius != mBlurRadius || preCompressScale != mCompressScale)) {
+            updateBlur();
+        }
     }
 
     /**
