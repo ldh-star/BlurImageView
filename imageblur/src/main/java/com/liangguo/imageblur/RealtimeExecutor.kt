@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit
  * @param corePoolSize 核心线程数。
  * @param maxPoolSize 线程池中最大线程数。
  */
-private class RealtimeExecutor(
+class RealtimeExecutor(
     private val maxTaskQueueSize: Int = 3,
     private val corePoolSize: Int = 1,
     private val maxPoolSize: Int = 3,

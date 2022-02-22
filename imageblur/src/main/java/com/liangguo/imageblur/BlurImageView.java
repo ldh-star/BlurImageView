@@ -60,17 +60,6 @@ public class BlurImageView extends AppCompatImageView {
         initAttrs(attrs);
     }
 
-    private void initAttrs(AttributeSet attrs) {
-        if (attrs != null && getDrawable() != null) {
-            TypedArray typedArray = getContext().getTheme().obtainStyledAttributes(attrs, R.styleable.BlurImageView, 0, 0);
-            mBlurRadius = typedArray.getFloat(R.styleable.BlurImageView_blurRadius, mBlurRadius);
-            mCompressScale = typedArray.getFloat(R.styleable.BlurImageView_compressScale, mCompressScale);
-            mEnableBlurInMainThread = typedArray.getBoolean(R.styleable.BlurImageView_enableBlurInMainThread, mEnableBlurInMainThread);
-            typedArray.recycle();
-            updateSrcDrawable();
-        }
-    }
-
     /**
      * 更新一次当前drawable，等价于setSrcDrawable(getDrawable())
      */
@@ -111,10 +100,7 @@ public class BlurImageView extends AppCompatImageView {
      * 为了提高模糊化的性能，在进行模糊时要先对图片进行压缩，再显示出来，这就是压缩的倍率
      */
     public void setCompressScale(@FloatRange(from = 0f, to = 1f) float compressScale) {
-        if (compressScale < 0) compressScale = 0;
-        else if (compressScale > 1) compressScale = 1;
-        this.mCompressScale = compressScale;
-        updateBlur();
+        setBlurAndCompress(mBlurRadius, mCompressScale);
     }
 
     /**
@@ -124,15 +110,20 @@ public class BlurImageView extends AppCompatImageView {
         return mCompressScale;
     }
 
+    /**
+     * 同时设值模糊半径和压缩比例两个参数，尽可能减少更新次数，节约性能。
+     */
+    public void setBlurAndCompress(@FloatRange(from = MIN_BLUR_RADIUS, to = MAX_BLUR_RADIUS) float blurRadius, @FloatRange(from = 0f, to = 1f) float compressScale) {
+        this.mBlurRadius = checkBlurRadius(blurRadius);
+        this.mCompressScale = checkCompressScale(compressScale);
+        updateBlur();
+    }
 
     /**
      * 模糊半径，取值 [0, 25]， 模糊半径越大，模糊程度越高
      */
     public void setBlurRadius(@FloatRange(from = MIN_BLUR_RADIUS, to = MAX_BLUR_RADIUS) float blurRadius) {
-        if (blurRadius < MIN_BLUR_RADIUS) blurRadius = MIN_BLUR_RADIUS;
-        else if (blurRadius > MAX_BLUR_RADIUS) blurRadius = MAX_BLUR_RADIUS;
-        this.mBlurRadius = blurRadius;
-        updateBlur();
+        setBlurAndCompress(mBlurRadius, mCompressScale);
     }
 
     /**
@@ -147,6 +138,32 @@ public class BlurImageView extends AppCompatImageView {
      */
     public void updateBlur() {
         doBlur(mSrcDrawable, mBlurRadius, mCompressScale);
+    }
+
+
+    private void initAttrs(AttributeSet attrs) {
+        if (attrs != null && getDrawable() != null) {
+            TypedArray typedArray = getContext().getTheme().obtainStyledAttributes(attrs, R.styleable.BlurImageView, 0, 0);
+            mBlurRadius = typedArray.getFloat(R.styleable.BlurImageView_blurRadius, mBlurRadius);
+            mCompressScale = typedArray.getFloat(R.styleable.BlurImageView_compressScale, mCompressScale);
+            mEnableBlurInMainThread = typedArray.getBoolean(R.styleable.BlurImageView_enableBlurInMainThread, mEnableBlurInMainThread);
+            typedArray.recycle();
+            updateSrcDrawable();
+        }
+    }
+
+    private float checkBlurRadius(float blurRadius) {
+        //检查是否合法并返回合法的compressScale
+        if (blurRadius < MIN_BLUR_RADIUS) blurRadius = MIN_BLUR_RADIUS;
+        else if (blurRadius > MAX_BLUR_RADIUS) blurRadius = MAX_BLUR_RADIUS;
+        return blurRadius;
+    }
+
+    private float checkCompressScale(float compressScale) {
+        //检查是否合法并返回合法的compressScale
+        if (compressScale < 0) compressScale = 0;
+        else if (compressScale > 1) compressScale = 1;
+        return compressScale;
     }
 
     private void doBlur(Drawable srcDrawable, float radius, float compressScale) {
@@ -177,6 +194,7 @@ public class BlurImageView extends AppCompatImageView {
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         mIsDetached = true;
+        mExecutor.shutdownNow();
     }
 
     private Bitmap blurRenderScript(Bitmap smallBitmap, float radius, float compressScale) {
