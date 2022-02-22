@@ -16,6 +16,10 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         mDataBinding = DataBindingUtil.setContentView(this, R.layout.activity_main)!!
 
+        mDataBinding.checkbox.setOnCheckedChangeListener { _, enable ->
+            mDataBinding.blurImageView.isEnableBlurInMainThread = enable
+        }
+
         mDataBinding.seekbarBlurRadius.setOnSeekBarChangeListener(object :
             SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(p0: SeekBar?, p1: Int, p2: Boolean) {

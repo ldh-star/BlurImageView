@@ -10,7 +10,6 @@ import android.renderscript.Element;
 import android.renderscript.RenderScript;
 import android.renderscript.ScriptIntrinsicBlur;
 import android.util.AttributeSet;
-import android.widget.ImageView;
 
 import androidx.annotation.FloatRange;
 import androidx.appcompat.widget.AppCompatImageView;
@@ -22,7 +21,6 @@ import androidx.appcompat.widget.AppCompatImageView;
  * 邮箱: 2637614077@qq.com
  */
 public class BlurImageView extends AppCompatImageView {
-
 
     /**
      * 为了提高模糊化的性能，在进行模糊时要先对图片进行压缩，再显示出来，这就是压缩的倍率，取值[0, 1]，0则会显示原图
@@ -43,6 +41,11 @@ public class BlurImageView extends AppCompatImageView {
 
     private Drawable mSrcDrawable;
 
+    private boolean mIsDetached = false;
+
+    private boolean mEnableBlurInMainThread = false;
+
+    private final RealtimeExecutor mExecutor = new RealtimeExecutor();
 
     public BlurImageView(Context context) {
         this(context, null);
@@ -62,6 +65,7 @@ public class BlurImageView extends AppCompatImageView {
             TypedArray typedArray = getContext().getTheme().obtainStyledAttributes(attrs, R.styleable.BlurImageView, 0, 0);
             mBlurRadius = typedArray.getFloat(R.styleable.BlurImageView_blurRadius, mBlurRadius);
             mCompressScale = typedArray.getFloat(R.styleable.BlurImageView_compressScale, mCompressScale);
+            mEnableBlurInMainThread = typedArray.getBoolean(R.styleable.BlurImageView_enableBlurInMainThread, mEnableBlurInMainThread);
             typedArray.recycle();
             updateSrcDrawable();
         }
@@ -83,6 +87,20 @@ public class BlurImageView extends AppCompatImageView {
     }
 
     /**
+     * @return 是否允许在主线程上进行模糊处理，默认为false
+     */
+    public boolean isEnableBlurInMainThread() {
+        return mEnableBlurInMainThread;
+    }
+
+    /**
+     * @param enableBlurInMainThread 是否允许在主线程上进行模糊处理，默认为false
+     */
+    public void setEnableBlurInMainThread(boolean enableBlurInMainThread) {
+        this.mEnableBlurInMainThread = enableBlurInMainThread;
+    }
+
+    /**
      * 获取SrcDrawable
      */
     public Drawable getSrcDrawable() {
@@ -93,6 +111,8 @@ public class BlurImageView extends AppCompatImageView {
      * 为了提高模糊化的性能，在进行模糊时要先对图片进行压缩，再显示出来，这就是压缩的倍率
      */
     public void setCompressScale(@FloatRange(from = 0f, to = 1f) float compressScale) {
+        if (compressScale < 0) compressScale = 0;
+        else if (compressScale > 1) compressScale = 1;
         this.mCompressScale = compressScale;
         updateBlur();
     }
@@ -108,10 +128,13 @@ public class BlurImageView extends AppCompatImageView {
     /**
      * 模糊半径，取值 [0, 25]， 模糊半径越大，模糊程度越高
      */
-    public void setBlurRadius(@FloatRange(from = 0f, to = 25f) float blurRadius) {
+    public void setBlurRadius(@FloatRange(from = MIN_BLUR_RADIUS, to = MAX_BLUR_RADIUS) float blurRadius) {
+        if (blurRadius < MIN_BLUR_RADIUS) blurRadius = MIN_BLUR_RADIUS;
+        else if (blurRadius > MAX_BLUR_RADIUS) blurRadius = MAX_BLUR_RADIUS;
         this.mBlurRadius = blurRadius;
         updateBlur();
     }
+
     /**
      * 模糊半径，取值 [0, 25]， 模糊半径越大，模糊程度越高
      */
@@ -129,22 +152,31 @@ public class BlurImageView extends AppCompatImageView {
     private void doBlur(Drawable srcDrawable, float radius, float compressScale) {
         if (srcDrawable == null)
             return;
-        if (radius < MIN_BLUR_RADIUS || radius > MAX_BLUR_RADIUS) {
-            throw new IllegalArgumentException("请确保模糊半径的取值范围是0到25，blurRadius must be (0 <= blurRadius <= 25)");
-        }
-        if (compressScale < 0 || compressScale > 1) {
-            throw new IllegalArgumentException("请确保compressScale的取值范围是0到1，compressScale must be (0 <= compressScale <= 1)");
-        }
         if (compressScale == 0 || radius == 0) {
             //直接显示，不进行模糊
             super.setImageDrawable(srcDrawable);
         } else {
-            if (srcDrawable instanceof  BitmapDrawable) {
-                Bitmap blurred = blurRenderScript(((BitmapDrawable) srcDrawable).getBitmap(), radius, compressScale);
-                setImageBitmap(blurred);
+            if (srcDrawable instanceof BitmapDrawable) {
+                if (mEnableBlurInMainThread) {
+                    setImageBitmap(blurRenderScript(((BitmapDrawable) srcDrawable).getBitmap(), radius, compressScale));
+                } else {
+                    mExecutor.submit(() -> {
+                        Bitmap blurred = blurRenderScript(((BitmapDrawable) srcDrawable).getBitmap(), radius, compressScale);
+                        if (!mIsDetached) {
+                            post(() -> setImageBitmap(blurred));
+                        }
+                        return null;
+                    });
+                }
             } else setImageDrawable(srcDrawable);
         }
         invalidate();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        mIsDetached = true;
     }
 
     private Bitmap blurRenderScript(Bitmap smallBitmap, float radius, float compressScale) {
