@@ -168,6 +168,11 @@ public class BlurImageView extends AppCompatImageView {
         doBlur(mSrcDrawable, mBlurRadius, mCompressScale);
     }
 
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        mIsDetached = false;
+    }
 
     private void initAttrs(AttributeSet attrs) {
         if (attrs != null && getDrawable() != null) {

@@ -12,7 +12,8 @@ import java.util.concurrent.TimeUnit
  * 邮箱: 2637614077@qq.com
  *
  * 实时任务执行器。
- * 当队列中的任务堆积到一定程度时，会移除掉队头的任务，再队尾处插入新任务。
+ * 当队列中的任务堆积到一定程度时，会移除掉队头的任务，在队尾处插入新任务。
+ * 控制任务队列的长度，任务过多会舍弃掉早进来的任务。
  *
  * @param maxTaskQueueSize 任务队列可容纳的最大任务数量。
  * @param corePoolSize 核心线程数。
