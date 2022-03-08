@@ -14,6 +14,8 @@ import android.util.AttributeSet;
 import androidx.annotation.FloatRange;
 import androidx.appcompat.widget.AppCompatImageView;
 
+import java.lang.ref.WeakReference;
+
 
 /**
  * @author ldh
@@ -212,8 +214,9 @@ public class BlurImageView extends AppCompatImageView {
                 } else {
                     mExecutor.submit(() -> {
                         Bitmap blurred = blurRenderScript(((BitmapDrawable) srcDrawable).getBitmap(), radius, compressScale);
-                        if (!mIsDetached) {
-                            post(() -> setImageBitmap(blurred));
+                        WeakReference<BlurImageView> thisView = new WeakReference<>(this);
+                        if (thisView.get() != null && !thisView.get().mIsDetached) {
+                            thisView.get().post(() -> thisView.get().setImageBitmap(blurred));
                         }
                         return null;
                     });
