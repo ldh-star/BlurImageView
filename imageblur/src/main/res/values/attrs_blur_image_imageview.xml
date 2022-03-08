@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <declare-styleable name="BlurImageView">
-        <attr name="blurRadius" format="float"/>
+        <attr name="blurRadius" format="integer"/>
         <attr name="compressScale" format="float"/>
         <attr name="enableBlurInMainThread" format="boolean"/>
     </declare-styleable>

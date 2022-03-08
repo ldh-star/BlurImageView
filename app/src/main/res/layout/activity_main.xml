@@ -37,6 +37,7 @@
                 android:text="允许在主线程执行模糊任务"/>
 
             <TextView
+                android:visibility="gone"
                 android:layout_gravity="center"
                 android:id="@+id/textView"
                 android:layout_width="match_parent"

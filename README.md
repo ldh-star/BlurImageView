@@ -33,11 +33,13 @@ implementation 'com.github.ldh-star:BlurImageView:lastVersion'
 blurImageView.compressScale = 0.5f
 
 //模糊半径，取值 [0, 25]， 模糊半径越大，模糊程度越高，0显示原图
-blurImageView.blurRadius = 10f
+blurImageView.blurRadius = 10
 
 //是否在主线程进行模糊任务，默认为false
 blurImageView.isEnableBlurInMainThread = false
 ```
+
+更多图像处理工具见BlurUtils.kt和Toolkit.kt两个文件。
 
 ## Licenses
 

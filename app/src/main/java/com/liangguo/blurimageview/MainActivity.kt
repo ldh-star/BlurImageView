@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.SeekBar
+import androidx.core.view.isVisible
 import androidx.databinding.DataBindingUtil
 import com.liangguo.blurimageview.databinding.ActivityMainBinding
 
@@ -18,13 +19,14 @@ class MainActivity : AppCompatActivity() {
 
         mDataBinding.checkbox.setOnCheckedChangeListener { _, enable ->
             mDataBinding.blurImageView.isEnableBlurInMainThread = enable
+            mDataBinding.textView.isVisible = enable
         }
 
         mDataBinding.seekbarBlurRadius.setOnSeekBarChangeListener(object :
             SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(p0: SeekBar?, p1: Int, p2: Boolean) {
                 val start = System.currentTimeMillis()
-                mDataBinding.blurImageView.blurRadius = p1.toFloat()
+                mDataBinding.blurImageView.blurRadius = p1
                 updateTimeText(System.currentTimeMillis() - start)
                 updateText()
             }

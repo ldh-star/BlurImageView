@@ -5,13 +5,10 @@ import android.content.res.TypedArray;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
-import android.renderscript.Allocation;
-import android.renderscript.Element;
-import android.renderscript.RenderScript;
-import android.renderscript.ScriptIntrinsicBlur;
 import android.util.AttributeSet;
 
 import androidx.annotation.FloatRange;
+import androidx.annotation.IntRange;
 import androidx.appcompat.widget.AppCompatImageView;
 
 import java.lang.ref.WeakReference;
@@ -32,14 +29,14 @@ public class BlurImageView extends AppCompatImageView {
     /**
      * 最大模糊半径
      */
-    public static final float MAX_BLUR_RADIUS = 25f;
+    public static final int MAX_BLUR_RADIUS = 25;
 
     /**
-     * 最小模糊半径
+     * 最小模糊半径，（实际上最小模糊半径是1，但是我们设定成0的话显示原图）
      */
-    public static final float MIN_BLUR_RADIUS = 0f;
+    public static final int MIN_BLUR_RADIUS = 0;
 
-    private float mBlurRadius = MIN_BLUR_RADIUS;
+    private int mBlurRadius = MIN_BLUR_RADIUS;
 
     private Drawable mSrcDrawable;
 
@@ -139,7 +136,7 @@ public class BlurImageView extends AppCompatImageView {
     /**
      * 同时设值模糊半径和压缩比例两个参数，尽可能减少更新次数，节约性能。
      */
-    public void setBlurAndCompress(@FloatRange(from = MIN_BLUR_RADIUS, to = MAX_BLUR_RADIUS) float blurRadius, @FloatRange(from = 0f, to = 1f) float compressScale) {
+    public void setBlurAndCompress(@IntRange(from = MIN_BLUR_RADIUS, to = MAX_BLUR_RADIUS) int blurRadius, @FloatRange(from = 0f, to = 1f) float compressScale) {
         float preBlurRadius = mBlurRadius;
         float preCompressScale = mCompressScale;
         this.mBlurRadius = checkBlurRadius(blurRadius);
@@ -152,14 +149,14 @@ public class BlurImageView extends AppCompatImageView {
     /**
      * 模糊半径，取值 [0, 25]， 模糊半径越大，模糊程度越高
      */
-    public void setBlurRadius(@FloatRange(from = MIN_BLUR_RADIUS, to = MAX_BLUR_RADIUS) float blurRadius) {
+    public void setBlurRadius(@IntRange(from = MIN_BLUR_RADIUS, to = MAX_BLUR_RADIUS) int blurRadius) {
         setBlurAndCompress(blurRadius, mCompressScale);
     }
 
     /**
      * 模糊半径，取值 [0, 25]， 模糊半径越大，模糊程度越高
      */
-    public float getBlurRadius() {
+    public int getBlurRadius() {
         return this.mBlurRadius;
     }
 
@@ -179,7 +176,7 @@ public class BlurImageView extends AppCompatImageView {
     private void initAttrs(AttributeSet attrs) {
         if (attrs != null && getDrawable() != null) {
             TypedArray typedArray = getContext().getTheme().obtainStyledAttributes(attrs, R.styleable.BlurImageView, 0, 0);
-            mBlurRadius = typedArray.getFloat(R.styleable.BlurImageView_blurRadius, mBlurRadius);
+            mBlurRadius = typedArray.getInt(R.styleable.BlurImageView_blurRadius, mBlurRadius);
             mCompressScale = typedArray.getFloat(R.styleable.BlurImageView_compressScale, mCompressScale);
             mEnableBlurInMainThread = typedArray.getBoolean(R.styleable.BlurImageView_enableBlurInMainThread, mEnableBlurInMainThread);
             typedArray.recycle();
@@ -187,7 +184,7 @@ public class BlurImageView extends AppCompatImageView {
         }
     }
 
-    private float checkBlurRadius(float blurRadius) {
+    private int checkBlurRadius(int blurRadius) {
         //检查是否合法并返回合法的compressScale
         if (blurRadius < MIN_BLUR_RADIUS) blurRadius = MIN_BLUR_RADIUS;
         else if (blurRadius > MAX_BLUR_RADIUS) blurRadius = MAX_BLUR_RADIUS;
@@ -201,7 +198,7 @@ public class BlurImageView extends AppCompatImageView {
         return compressScale;
     }
 
-    private void doBlur(Drawable srcDrawable, float radius, float compressScale) {
+    private void doBlur(Drawable srcDrawable, int radius, float compressScale) {
         if (srcDrawable == null)
             return;
         if (compressScale == 0 || radius == 0) {
@@ -210,20 +207,20 @@ public class BlurImageView extends AppCompatImageView {
         } else {
             if (srcDrawable instanceof BitmapDrawable) {
                 if (mEnableBlurInMainThread) {
-                    setImageBitmap(blurRenderScript(((BitmapDrawable) srcDrawable).getBitmap(), radius, compressScale));
+                    setImageBitmap(BlurUtils.INSTANCE.blurByNative(((BitmapDrawable) srcDrawable).getBitmap(), radius, compressScale));
                 } else {
+                    //在子线程中运行不能强引用this，有内存泄漏的风险。
+                    WeakReference<BlurImageView> thisReference = new WeakReference<>(this);
                     mExecutor.submit(() -> {
-                        Bitmap blurred = blurRenderScript(((BitmapDrawable) srcDrawable).getBitmap(), radius, compressScale);
-                        WeakReference<BlurImageView> thisView = new WeakReference<>(this);
-                        if (thisView.get() != null && !thisView.get().mIsDetached) {
-                            thisView.get().post(() -> thisView.get().setImageBitmap(blurred));
+                        Bitmap blurred = BlurUtils.INSTANCE.blurByNative(((BitmapDrawable) srcDrawable).getBitmap(), radius, compressScale);
+                        if (thisReference.get() != null && !thisReference.get().mIsDetached) {
+                            thisReference.get().post(() -> thisReference.get().setImageBitmap(blurred));
                         }
                         return null;
                     });
                 }
-            } else setImageDrawable(srcDrawable);
+            } else super.setImageDrawable(srcDrawable);
         }
-        invalidate();
     }
 
     @Override
@@ -233,22 +230,4 @@ public class BlurImageView extends AppCompatImageView {
         mExecutor.shutdownNow();
     }
 
-    private Bitmap blurRenderScript(Bitmap smallBitmap, float radius, float compressScale) {
-        int width = Math.round(smallBitmap.getWidth() * compressScale);
-        int height = Math.round(smallBitmap.getHeight() * compressScale);
-
-        Bitmap inputBitmap = Bitmap.createScaledBitmap(smallBitmap, width, height, false);
-        Bitmap outputBitmap = Bitmap.createBitmap(inputBitmap);
-
-        RenderScript renderScript = RenderScript.create(getContext());
-        ScriptIntrinsicBlur theIntrinsic = ScriptIntrinsicBlur.create(renderScript, Element.U8_4(renderScript));
-        Allocation tmpIn = Allocation.createFromBitmap(renderScript, inputBitmap);
-        Allocation tmpOut = Allocation.createFromBitmap(renderScript, outputBitmap);
-        theIntrinsic.setRadius(radius);
-        theIntrinsic.setInput(tmpIn);
-        theIntrinsic.forEach(tmpOut);
-        tmpOut.copyTo(outputBitmap);
-
-        return outputBitmap;
-    }
 }
